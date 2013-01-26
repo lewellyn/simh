@@ -58,7 +58,9 @@ ifeq ($(WIN32),)  #*nix Environments (&& cygwin)
   ifeq ($(GCC),)
     GCC = gcc
   endif
-  OSTYPE = $(shell uname)
+  ifeq ($(OSTYPE),) # To ease cross-compiling
+    OSTYPE = $(shell uname)
+  endif
   # OSNAME is used in messages to indicate the source of libpcap components
   OSNAME = $(OSTYPE)
   ifeq (SunOS,$(OSTYPE))
@@ -89,7 +91,39 @@ ifeq ($(WIN32),)  #*nix Environments (&& cygwin)
       OS_CCDEFS += -DSIM_ASYNCH_IO 
      endif
     OS_LDFLAGS = -lm
-  else # Non-Android Builds
+  else ifeq (QNX,$(OSTYPE)) # QNX target build?
+    # Assuming RIM QNX for Tablet OS & BlackBerry 10.
+    # LDFLAGS may need adjustment if on a different QNX.
+    ifeq ($(CPUARCH),) # x86 or armle-v7
+      # default to armle-v7
+      CPUARCH = armle-v7
+    endif
+    ifeq ($(OSVER),)
+      # BlackBerry 10.
+      OSVER = 8.0.0
+      # Tablet OS.
+      # OSVER = 6.5.0
+    endif
+    INCPATH := $(QNX_TARGET)/usr/include
+    LIBPATH := $(QNX_TARGET)/$(CPUARCH)/lib $(QNX_TARGET)/$(CPUARCH)/usr/lib
+    LIBEXT = so
+    OS_CCDEFS = -D__QNX__ -D__QNXNTO__
+    OS_LDFLAGS = -lpps -lbps -lsocket
+    # Security options. Probably a good idea.
+    # http://developer.blackberry.com/native/documentation/playbook/com.qnx.doc.ide.userguide/topic/bb_tablet_compile_security_options.html
+    OS_CCDEFS += -fstack-protector-all -D_FORTIFY_SOURCE=2 
+    OS_LDFLAGS += -Wl,-z,relro -Wl,-z,now
+    ifeq (armle-v7,$(CPUARCH)) # x86 or armle-v7
+      GCC = arm-unknown-nto-qnx$(OSVER)eabi-gcc
+    else # assume non-ARM is x86
+      GCC = i486-pc-nto-qnx$(OSVER)-gcc
+    endif
+    # QNX supports POSIX threads, but nothing for link-time.
+    OS_CCDEFS += -DUSE_READER_THREAD
+    ifeq (,$(NOASYNCH))
+      OS_CCDEFS += -DSIM_ASYNCH_IO 
+    endif
+  else # Non-embedded-target builds
     INCPATH:=/usr/include
     LIBPATH:=/usr/lib
     OS_CCDEFS = -D_GNU_SOURCE
@@ -744,12 +778,13 @@ SWTP6800_OPT = -I ${SWTP6800D}
 
 DISPLAYD = display
 ifeq ($(WIN32),)
-  ifeq (x11,$(shell if $(TEST) -e /usr/include/X11/Intrinsic.h ; then echo x11; fi))
-    DISPLAYL = ${DISPLAYD}/display.c $(DISPLAYD)/x11.c
-    DISPLAY_OPT = -DUSE_DISPLAY -I/usr/X11/include -lXt -lX11 -lm
-  else
-    DISPLAYL = 
-    DISPLAY_OPT = 
+  DISPLAYL = 
+  DISPLAY_OPT = 
+  ifneq ($(filter /usr/%,$(firstword $(INCPATH))),)
+    ifeq (x11,$(shell if $(TEST) -e /usr/include/X11/Intrinsic.h ; then echo x11; fi))
+      DISPLAYL = ${DISPLAYD}/display.c $(DISPLAYD)/x11.c
+      DISPLAY_OPT = -DUSE_DISPLAY -I/usr/X11/include -lXt -lX11 -lm
+    endif
   endif
 else
   DISPLAYL = ${DISPLAYD}/display.c $(DISPLAYD)/win32.c
