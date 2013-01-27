@@ -79,6 +79,8 @@ Internal routines:
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 #if defined SIM_ASYNCH_IO
 #include <pthread.h>
