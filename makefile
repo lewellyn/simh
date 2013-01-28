@@ -8,6 +8,7 @@
 #   FreeBSD
 #   Windows (MinGW & cygwin)
 #   Linux x86 targeting Android (using agcc script)
+#   QNX for BlackBerry 10/PlayBook (x86 & ARM)
 #
 # Android targeted builds should invoke GNU make with GCC=agcc on
 # the command line.
@@ -104,6 +105,8 @@ ifeq ($(WIN32),)  #*nix Environments (&& cygwin)
       # Tablet OS.
       # OSVER = 6.5.0
     endif
+    # Disable ROMs for now
+    DONT_USE_ROMS = 1
     INCPATH := $(QNX_TARGET)/usr/include
     LIBPATH := $(QNX_TARGET)/$(CPUARCH)/lib $(QNX_TARGET)/$(CPUARCH)/usr/lib
     LIBEXT = so
